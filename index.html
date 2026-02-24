@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="ko">
 <head>
@@ -516,7 +517,7 @@ function resume() {
 }
 
 function doTick() {
-  const step = 0.4;
+  const step = 0.2;
   const ms   = Math.round(40 / speedMult);
   intId = setInterval(() => {
     simT += step;
@@ -651,25 +652,35 @@ function buildBeakers() {
 
 function makeSVG(k, stroke) {
   const W=112, H=145;
-  const fill = k==='L'?'rgba(26,111,196,0.20)':'rgba(196,122,26,0.20)';
+  const solidFill  = k==='L' ? '#c8dff5' : '#f5ddb8';  // 고체: 밝은 불투명 색
+  const liquidFill = k==='L' ? '#5ba4e888' : '#d4943a88'; // 액체: 반투명
+  const surfFill   = k==='L' ? '#4a8fd4cc' : '#c47a1acc'; // 경계선
   return `<svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg" style="display:block;">
-    <defs><clipPath id="bc${k}"><rect x="${BX}" y="${BY}" width="${BW}" height="${BH}" rx="2"/></clipPath></defs>
+    <defs>
+      <clipPath id="bc${k}"><rect x="${BX}" y="${BY}" width="${BW}" height="${BH}" rx="2"/></clipPath>
+    </defs>
     <text x="${W/2}" y="${H-1}" text-anchor="middle" font-size="21">🔥</text>
-    <rect x="${BX}" y="${BY}" width="${BW}" height="${BH}" fill="#f0ece4" rx="2"/>
-    <rect id="bsol${k}" x="${BX}" y="${BY}" width="${BW}" height="${BH}" fill="${fill}" clip-path="url(#bc${k})"/>
-    <rect id="bliq${k}" x="${BX}" y="${BY+BH}" width="${BW}" height="0" fill="${stroke}55" clip-path="url(#bc${k})"/>
-    <rect id="bsrf${k}" x="${BX}" y="${BY+BH}" width="${BW}" height="3" fill="${stroke}88" opacity="0" clip-path="url(#bc${k})"/>
-    <g id="bbub${k}" clip-path="url(#bc${k})" opacity="0">
-      <circle cx="${BX+16}" cy="${BY+BH-5}" r="3" fill="white" opacity="0.4"><animate attributeName="cy" from="${BY+BH-2}" to="${BY+BH-34}" dur="1.2s" repeatCount="indefinite"/></circle>
-      <circle cx="${BX+38}" cy="${BY+BH-10}" r="2" fill="white" opacity="0.35"><animate attributeName="cy" from="${BY+BH-2}" to="${BY+BH-38}" dur="1.55s" repeatCount="indefinite"/></circle>
-      <circle cx="${BX+60}" cy="${BY+BH-7}" r="2.5" fill="white" opacity="0.38"><animate attributeName="cy" from="${BY+BH-2}" to="${BY+BH-28}" dur="1.05s" repeatCount="indefinite"/></circle>
-    </g>
+    <!-- 비커 배경 -->
+    <rect x="${BX}" y="${BY}" width="${BW}" height="${BH}" fill="#f7f4ee" rx="2"/>
+    <!-- 액체층 (아래에서 위로 차오름) -->
+    <rect id="bliq${k}" x="${BX}" y="${BY+BH}" width="${BW}" height="0"
+          fill="${liquidFill}" clip-path="url(#bc${k})"/>
+    <!-- 고체 블록 (위에서 아래로 줄어듦 — 실제로는 y고정, height 감소) -->
+    <rect id="bsol${k}" x="${BX}" y="${BY}" width="${BW}" height="${BH}"
+          fill="${solidFill}" clip-path="url(#bc${k})"/>
+    <!-- 고체-액체 경계 얇은 선 -->
+    <rect id="bsrf${k}" x="${BX}" y="${BY+BH}" width="${BW}" height="2"
+          fill="${surfFill}" opacity="0" clip-path="url(#bc${k})"/>
+    <!-- 눈금 -->
     <line x1="${BX}" y1="${BY+21}" x2="${BX+8}" y2="${BY+21}" stroke="#ccc" stroke-width="1"/>
     <line x1="${BX}" y1="${BY+43}" x2="${BX+8}" y2="${BY+43}" stroke="#ccc" stroke-width="1"/>
     <line x1="${BX}" y1="${BY+65}" x2="${BX+8}" y2="${BY+65}" stroke="#ccc" stroke-width="1"/>
-    <path d="M${BX} ${BY} L${BX} ${BY+BH+5} Q${BX} ${BY+BH+12} ${BX+10} ${BY+BH+12} L${BX+BW-10} ${BY+BH+12} Q${BX+BW} ${BY+BH+12} ${BX+BW} ${BY+BH+5} L${BX+BW} ${BY} Z" fill="none" stroke="${stroke}" stroke-width="2.5" stroke-linejoin="round"/>
+    <!-- 비커 외곽선 -->
+    <path d="M${BX} ${BY} L${BX} ${BY+BH+5} Q${BX} ${BY+BH+12} ${BX+10} ${BY+BH+12} L${BX+BW-10} ${BY+BH+12} Q${BX+BW} ${BY+BH+12} ${BX+BW} ${BY+BH+5} L${BX+BW} ${BY} Z"
+          fill="none" stroke="${stroke}" stroke-width="2.5" stroke-linejoin="round"/>
     <line x1="${BX-6}" y1="${BY}" x2="${BX+BW+6}" y2="${BY}" stroke="${stroke}" stroke-width="2.5" stroke-linecap="round"/>
-    <rect x="${BX+BW-17}" y="${BY+4}" width="7" height="50" rx="3.5" fill="#f8f8f8" stroke="${stroke}" stroke-width="1.2"/>
+    <!-- 온도계 -->
+    <rect x="${BX+BW-17}" y="${BY+4}" width="7" height="50" rx="3.5" fill="#f0f0f0" stroke="${stroke}" stroke-width="1.2"/>
     <circle cx="${BX+BW-13.5}" cy="${BY+58}" r="6.5" fill="${stroke}"/>
     <rect id="bmerc${k}" x="${BX+BW-15}" y="${BY+26}" width="3.5" height="28" fill="${stroke}" rx="1.75"/>
   </svg>`;
@@ -696,34 +707,46 @@ function updateBeakers() {
       if (state==='liquid')  { ch.classList.add('sc-l'); ch.textContent='액체 💧'; }
     }
 
-    const lh = frac * BH, sh = (1-frac)*BH;
+    const lh = frac * BH;   // 액체 높이
+    const sh = (1 - frac) * BH; // 고체 높이
     const liqEl = document.getElementById('bliq'+k);
     const solEl = document.getElementById('bsol'+k);
     const srfEl = document.getElementById('bsrf'+k);
-    const bubEl = document.getElementById('bbub'+k);
     const merEl = document.getElementById('bmerc'+k);
     if (!liqEl) return;
-    liqEl.setAttribute('y', BY+BH-lh); liqEl.setAttribute('height', lh);
+
+    // 액체: 비커 바닥부터 위로 차오름
+    liqEl.setAttribute('y', BY + BH - lh);
+    liqEl.setAttribute('height', lh);
+
+    // 고체: 위에서 시작해서 아래쪽 경계가 줄어듦 (위치 고정, height만 감소)
+    solEl.setAttribute('y', BY);
     solEl.setAttribute('height', sh);
-    srfEl.setAttribute('y', BY+BH-lh-1.5); srfEl.setAttribute('opacity', frac>0.04?0.8:0);
-    bubEl.setAttribute('opacity', state==='liquid'?0.9:state==='melting'?0.5:0);
-    const rise = Math.min(((temp-25)/55)*26, 26);
-    merEl.setAttribute('y', BY+54-rise); merEl.setAttribute('height', 28+rise);
+
+    // 경계선: 고체 아래쪽에 표시
+    srfEl.setAttribute('y', BY + sh - 1);
+    srfEl.setAttribute('opacity', frac > 0.02 && frac < 0.98 ? 1 : 0);
+
+    // 온도계 수은 상승
+    const rise = Math.min(((temp - 25) / 55) * 26, 26);
+    merEl.setAttribute('y', BY + 54 - rise);
+    merEl.setAttribute('height', 28 + rise);
   });
 }
 
 function resetBeakerFill() {
   ['L','P'].forEach(k => {
     const liq=document.getElementById('bliq'+k), sol=document.getElementById('bsol'+k),
-          srf=document.getElementById('bsrf'+k), bub=document.getElementById('bbub'+k),
+          srf=document.getElementById('bsrf'+k),
           mer=document.getElementById('bmerc'+k), th=document.getElementById('thermo'+k),
           ch=document.getElementById('chip'+k);
     if(!liq)return;
-    liq.setAttribute('y',BY+BH);liq.setAttribute('height',0);
-    sol.setAttribute('height',BH); srf.setAttribute('opacity',0); bub.setAttribute('opacity',0);
-    mer.setAttribute('y',BY+26); mer.setAttribute('height',28);
-    if(th)th.textContent='25.0 °C';
-    if(ch){ch.className='schip sc-s';ch.textContent='고체 🧊';}
+    liq.setAttribute('y', BY+BH); liq.setAttribute('height', 0);
+    sol.setAttribute('y', BY);    sol.setAttribute('height', BH);
+    srf.setAttribute('opacity', 0);
+    mer.setAttribute('y', BY+26); mer.setAttribute('height', 28);
+    if(th) th.textContent='25.0 °C';
+    if(ch) { ch.className='schip sc-s'; ch.textContent='고체 🧊'; }
   });
 }
 
@@ -921,3 +944,4 @@ function doAns(qi, oi, btn) {
 </script>
 </body>
 </html>
+
